@@ -32,24 +32,23 @@ contract Lottery {
     }
 
     function buyLotteryTicket() public payable {
-        console.log("try buy ticket by ", msg.value);
-        if (msg.value < ticketPrice) {
-            revert("Price is higher");
-        }
+        console.log("try buy ticket for ", msg.value);
+        require(msg.value >= ticketPrice, "Price is higher");
 
         console.log("Contract's money is ", address(this).balance);
         console.log("%s is added to players", msg.sender);
         players.push(msg.sender);
     }
 
-    function finishLottery() public managerOnly {
+    function finishLottery() public managerOnly returns (address payable winnerAddress) {
         console.log("try finishLottery");
-        require(block.timestamp >= start + lotteryDuration * 1 days, "is not over yet");
+        // require(block.timestamp >= start + lotteryDuration * 1 days, "is not over yet");
         require(address(this).balance > prizeAmount, "doesn't have enough money in the bank");
 
         uint winnerIndex = pseudoRandom() % players.length;
-        address payable winnerAddress = payable(players[winnerIndex]);
+        winnerAddress = payable(players[winnerIndex]);
         winnerAddress.transfer(prizeAmount);
+        console.log("winner is %s %s", winnerAddress, address(winnerAddress).balance);
         players = new address[](0);
     }
 

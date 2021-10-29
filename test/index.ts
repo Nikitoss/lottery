@@ -5,11 +5,17 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { addAbortSignal } from "stream";
 import { Lottery } from "../typechain";
 import { Web3Provider } from "@ethersproject/providers";
+import {BigNumber} from "ethers";
 
 describe("Lottery", function () {
   const lotteryDuration = 1;
-  const ticketPrice = 100;
-  const prizeAmount = 200;
+  //                                    45500804539494 - average cost of empty transaction
+  //                                  1129987031480624 - average cost of transaction
+  const ticketPrice = BigNumber.from("1000000000000000");   
+  const prizeAmount = BigNumber.from("6900000000000000");  
+
+  // const ticketPrice = BigNumber.from("100");   
+  // const prizeAmount = BigNumber.from("590"); 
 
   let LotteryFactory;
   let lottery: Lottery;
@@ -50,21 +56,42 @@ describe("Lottery", function () {
   });
 
   describe("Transactions: Buying lotteryTicket", function() {
-    it("Should fail if sender doesn’t send enough wei", async function () {
-      const initialAddr1Balance = await addr1.getBalance();
-      // const initialAddr1Balance = await addr1.getBalance();
-      await expect(
-        lottery.connect(addr1).buyLotteryTicket({value: ticketPrice - 1})
-      ).to.be.revertedWith("Price is higher");
-      console.log("============Not Buy", initialAddr1Balance.sub(await addr1.getBalance()).toString())
-    });
-
     it("HappyPath", async function () {
       const initialAddr1Balance = await addr1.getBalance();
-      lottery.connect(addr1).buyLotteryTicket({value: ticketPrice});
+      await lottery.connect(addr1).buyLotteryTicket({value: ticketPrice});
       // expect(await addr1.getBalance()).to.equal(initialAddr1Balance.sub(ticketPrice));
-      console.log("=========Buy", initialAddr1Balance.sub(await addr1.getBalance()).toString())
-      console.log(lottery.players);
-    })
+      const endBalance = await addr1.getBalance();
+      const diff = initialAddr1Balance.sub(endBalance);
+      console.log("Buy %s - %s = %s", initialAddr1Balance.toString(), endBalance.toString(), diff.toString());
+      console.log("players + ", await lottery.players(0));
+    });
+    
+    it("Should fail if sender doesn’t send enough wei", async function () {
+      const initialAddr1Balance = await addr1.getBalance();
+      
+      // const initialAddr1Balance = await addr1.getBalance();
+      await expect(
+        lottery.connect(addr1).buyLotteryTicket({value: ticketPrice.sub(1)})
+      ).to.be.revertedWith("Price is higher");
+      const endBalance = await addr1.getBalance();
+      const diff = initialAddr1Balance.sub(endBalance);
+      console.log("Not Buy %s - %s = %s", initialAddr1Balance.toString(), endBalance.toString(), diff.toString())
+      console.log("players - ", await lottery.players(0));
+    });
   });
+
+  describe("finishLottery", function() {
+    it("finishLottery", async function () {
+      await Promise.all([
+        lottery.connect(addr1).buyLotteryTicket({value: ticketPrice}),
+        lottery.connect(addr2).buyLotteryTicket({value: ticketPrice}),
+        lottery.connect(addr3).buyLotteryTicket({value: ticketPrice}),
+        lottery.connect(addr4).buyLotteryTicket({value: ticketPrice}),
+        lottery.connect(addr5).buyLotteryTicket({value: ticketPrice}),
+        lottery.connect(addr6).buyLotteryTicket({value: ticketPrice})
+      ]);
+
+      const winnerAddress = await lottery.finishLottery();
+    });
+  })
 });
