@@ -91,14 +91,9 @@ contract Lottery {
     /**
      * @notice Закончить лотерею. 
      */
-    function finishLottery() public managerOnly returns (address) {
+    function finishLottery() public managerOnly {
         // console.log("try finishLottery");
         require(block.timestamp >= end, "is not over yet");
-
-        // На счету лотереи должно быть чуть больше денег, чем для выирыша, потому что нужно заплатить за транзацию.
-        // Я не знаю, сколько стоит транзация, поэтому считаю, что в среднем тратится 2300 gas (есть мнение что 21000)
-        // Альтернативный вариант - пусть победитель сам оплачивает транзакцию, то есть из выигрыша вычесть сумму за газ.
-        require(address(this).balance > (prizeAmount + tx.gasprice*2300), "doesn't have enough money in the bank");
 
         address payable winnerAddress;
 
@@ -106,17 +101,25 @@ contract Lottery {
         if (players.length > 0) {
             uint winnerIndex = pseudoRandom() % players.length;
             winnerAddress = payable(players[winnerIndex]);
-            winnerAddress.transfer(prizeAmount);
+
             emit LotteryFinish(winnerAddress);
             console.log("winner is %s %s", winnerAddress, address(winnerAddress).balance);
             players = new address[](0); // Если лотерея одноразовая, строчка не нужна. Если буду переделывать на многоразовую, то оставить
-        }
 
-        /**
-         * После выплаты выигрыша лотереи победителю, остаток переводим менеджеру.
-         */
-        selfdestruct(payable(manager));
-        return winnerAddress;
+            // На счету лотереи должно быть чуть больше денег, чем для выирыша, потому что нужно заплатить за транзацию.
+            // Я не знаю, сколько стоит транзация, поэтому считаю, что в среднем тратится 2300 gas (есть мнение что 21000)
+            // Альтернативный вариант - пусть победитель сам оплачивает транзакцию, то есть из выигрыша вычесть сумму за газ.
+            if (address(this).balance > (prizeAmount + tx.gasprice*2300)) {
+                winnerAddress.transfer(prizeAmount);
+                // После выплаты выигрыша лотереи победителю, остаток переводим менеджеру.
+                selfdestruct(payable(manager));
+            } else {
+                // Если менеджер не смог набрать достаточное количество участников, чтобы собрать выигрыш, все собранные деньги направляются победителю
+                selfdestruct(winnerAddress);
+            }
+        } else {
+            selfdestruct(payable(manager));   
+        }
     }
 
     /**

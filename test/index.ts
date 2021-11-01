@@ -193,12 +193,13 @@ describe("Lottery", function() {
 
       await time.increase(time.duration.days(lotteryDuration));
 
-      expect(await lottery.isEnded()).to.equal(true);
-      
-      await expect(
-        lottery.finishLottery(),
-        "Не сработала проверка на размер выигрыша"
-      ).to.be.revertedWith("doesn't have enough money in the bank");
+      expect(await lottery.isEnded()).to.equal(true, "Время ещё не кончилось");
+      await lottery.finishLottery();
+      const endLotteryBalance = await ethers.provider.getBalance(lottery.address);
+
+      expect(endLotteryBalance.toString()).to.equal('0', "Баланс лотереи не обнулился");
+
+      expect(lottery.isEnded(), "Контракт лотереи не был удалён").to.be.reverted;
     });
 
     it("Должен упасть, если менеджер попытается разыграть лотерею до её окончания", async function() {
