@@ -103,7 +103,7 @@ contract Lottery {
             winnerAddress = payable(players[winnerIndex]);
 
             emit LotteryFinish(winnerAddress);
-            console.log("winner is %s %s", winnerAddress, address(winnerAddress).balance);
+            // console.log("winner is %s %s", winnerAddress, address(winnerAddress).balance);
             players = new address[](0); // Если лотерея одноразовая, строчка не нужна. Если буду переделывать на многоразовую, то оставить
 
             // На счету лотереи должно быть чуть больше денег, чем для выирыша, потому что нужно заплатить за транзацию.
