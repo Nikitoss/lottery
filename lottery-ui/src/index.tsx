@@ -1,11 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { LayoutApp } from 'Pages/Layout';
+import 'antd/dist/antd.css';
 import './index.css';
-import { Dapp } from './components/Dapp';
+// import './App.css';
 
 ReactDOM.render(
   <React.StrictMode>
-    <Dapp />
+    <LayoutApp />
   </React.StrictMode>,
   document.getElementById('root')
 );

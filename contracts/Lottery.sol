@@ -10,33 +10,34 @@ import "hardhat/console.sol";
  */
 contract Lottery {
     // Длительность лотереи
-    uint public lotteryDuration;
+    uint256 public lotteryDuration;
 
     // Стоимость билета
-    uint public ticketPrice;
+    uint256 public ticketPrice;
 
     // Размер приза
-    uint public prizeAmount;
+    uint256 public prizeAmount;
 
     // Дата начала лотереи
-    uint public start;
+    uint256 public start;
 
     // Дата конца лотереи
-    uint public end;
+    uint256 public end;
 
-    // Адрес менеджера. 
+    // Флаг доступности лотереи
+    bool public isAlive = true;
+
+    // Адрес менеджера.
     address private manager;
 
     // Список адресов игроков.
     address[] private players;
 
-
     event LotteryTicketPurchased(address player);
     event LotteryFinish(address winner);
-    // event 
 
     /**
-     * @notice Модификатор, проверка, что функции под этим модификатормо может выполнять только мэнеджер лотереи.
+     * @notice Модификатор, проверка, что функции под этим модификатормо может выполнять только менеджер лотереи.
      */
     modifier managerOnly() {
         require(msg.sender == manager, "manager Only");
@@ -46,17 +47,21 @@ contract Lottery {
     /**
      * @notice Конструктор лотереи. Кто делоит контракт, тот становится администратором.
      *
-     * @param _lotteryDuration Длительность лотереи в днях.
+     * @param _lotteryDuration Длительность лотереи в секундах.
      * @param _ticketPrice Стоимость билета в wei.
      * @param _prizeAmount Размер приза в лотерее в wei.
      */
-    constructor(uint _lotteryDuration, uint _ticketPrice, uint _prizeAmount) {
+    constructor(
+        uint256 _lotteryDuration,
+        uint256 _ticketPrice,
+        uint256 _prizeAmount
+    ) {
         manager = msg.sender;
         lotteryDuration = _lotteryDuration;
         ticketPrice = _ticketPrice;
         prizeAmount = _prizeAmount;
         start = block.timestamp;
-        end = start + _lotteryDuration * 1 days;
+        end = start + _lotteryDuration;
 
         // console.log("\t %cDeploying a Lottery:", "font-style: bold");
         // console.log("\t   manager:", manager);
@@ -89,27 +94,24 @@ contract Lottery {
     }
 
     /**
-     * @notice Закончить лотерею. 
+     * @notice Закончить лотерею.
      */
     function finishLottery() public managerOnly {
         // console.log("try finishLottery");
-        require(block.timestamp >= end, "is not over yet");
+        require(isEnded(), "is not over yet");
 
         address payable winnerAddress;
 
         // На счету до начала лотереи могут быть уже деньги, поэтому проверка на баланс может не сработать.
         if (players.length > 0) {
-            uint winnerIndex = pseudoRandom() % players.length;
+            uint256 winnerIndex = pseudoRandom() % players.length;
             winnerAddress = payable(players[winnerIndex]);
 
             emit LotteryFinish(winnerAddress);
             // console.log("winner is %s %s", winnerAddress, address(winnerAddress).balance);
             players = new address[](0); // Если лотерея одноразовая, строчка не нужна. Если буду переделывать на многоразовую, то оставить
 
-            // На счету лотереи должно быть чуть больше денег, чем для выирыша, потому что нужно заплатить за транзацию.
-            // Я не знаю, сколько стоит транзация, поэтому считаю, что в среднем тратится 2300 gas (есть мнение что 21000)
-            // Альтернативный вариант - пусть победитель сам оплачивает транзакцию, то есть из выигрыша вычесть сумму за газ.
-            if (address(this).balance > (prizeAmount + tx.gasprice*2300)) {
+            if (address(this).balance >= prizeAmount) {
                 winnerAddress.transfer(prizeAmount);
                 // После выплаты выигрыша лотереи победителю, остаток переводим менеджеру.
                 selfdestruct(payable(manager));
@@ -118,7 +120,8 @@ contract Lottery {
                 selfdestruct(winnerAddress);
             }
         } else {
-            selfdestruct(payable(manager));   
+            emit LotteryFinish(address(0));
+            selfdestruct(payable(manager));
         }
     }
 
@@ -126,12 +129,13 @@ contract Lottery {
      * @notice Получить псевдо-рандомное число.
      * @dev Этот метод не рекомендуется использовать в релизе.
      */
-    function pseudoRandom() private view returns (uint) {
-        return uint(
-            keccak256(
-                abi.encodePacked(block.difficulty, block.timestamp, players)
-            )
-        );
+    function pseudoRandom() private view returns (uint256) {
+        return
+            uint256(
+                keccak256(
+                    abi.encodePacked(block.difficulty, block.timestamp, players)
+                )
+            );
     }
 
     /**
@@ -153,6 +157,14 @@ contract Lottery {
      * @notice Узнать, закончилась ли уже лотерея.
      */
     function isEnded() public view returns (bool) {
+        // console.log("block.timestamp(%s) end(%s)", block.timestamp, end);
         return block.timestamp >= end;
+    }
+
+    /**
+        Только для дебага. Потом удалить
+     */
+    function getTimeStamp() public view returns (uint256) {
+        return block.timestamp;
     }
 }
